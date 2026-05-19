@@ -49,6 +49,7 @@
 
   <script>
     // 全局状态
+    let currentTaskId = null;       // 新增：用于存储最新的 task_id
     let currentImageFilename = '';
     const RESULT_POLL_TIMEOUT = 120 * 1000;
     let resultPollStartTime = null;
@@ -61,18 +62,28 @@
           if (data.success && data.ready) {
             document.getElementById('timestamp').textContent = new Date().toLocaleTimeString();
             
-            if (currentImageFilename !== data.filename) {
-              currentImageFilename = data.filename;
+            // 获取最新任务的标识符（优先使用 task_id）
+            const newTaskId = data.task_id || null;
+            const newFilename = data.filename;
+            
+            // 判断是否为新任务（如果 task_id 存在则用 task_id 判断，否则用 filename）
+            const isNewTask = newTaskId 
+              ? (currentTaskId !== newTaskId) 
+              : (currentImageFilename !== newFilename);
+
+            if (isNewTask) {
+              currentTaskId = newTaskId;
+              currentImageFilename = newFilename;
               
               const img = document.getElementById('latest-image');
-              img.src = `/uploads/${data.filename}?t=${Date.now()}`;
+              img.src = `/uploads/${newFilename}?t=${Date.now()}`;
               img.style.display = 'block';
               document.getElementById('image-placeholder').style.display = 'none';
               document.getElementById('live-badge').style.display = 'block';
 
-              // 开始轮询结果
+              // 开始轮询结果，传递两个标识符
               resultPollStartTime = Date.now();
-              fetchResult(data.filename);
+              fetchResult(currentTaskId, currentImageFilename);
               
               // 重置结果展示
               document.getElementById('result-box').textContent = 'Analyzing...';
@@ -83,23 +94,35 @@
     }
 
     // 2. 获取结果
-    function fetchResult(filename) {
+    function fetchResult(taskId, filename) {
       if (Date.now() - resultPollStartTime > RESULT_POLL_TIMEOUT) {
         document.getElementById('result-box').textContent = "分析超时 / Analysis Timeout";
         return;
       }
 
-      fetch(`/result?filename=${filename}`)
+      const queryParams = taskId 
+        ? `task_id=${taskId}` 
+        : `filename=${filename}`;
+
+      fetch(`/result?${queryParams}`)
         .then(res => res.json())
         .then(data => {
+          // ✅ 修改：区分"还在处理中"和"处理失败"
           if (data.success && data.ready) {
-            // 直接展示所有文本结果，不做解析
+            // 成功获取结果
             document.getElementById('result-box').textContent = data.content;
+          } else if (data.ready && !data.success) {
+            // 处理失败（如算法报错），停止轮询并显示错误
+            document.getElementById('result-box').textContent = "处理失败: " + (data.message || "未知错误");
           } else {
-            setTimeout(() => fetchResult(filename), 1000);
+            // 还在处理中，继续轮询
+            setTimeout(() => fetchResult(taskId, filename), 1000);
           }
         })
-        .catch(console.error);
+        .catch(err => {
+          console.error('获取结果异常:', err);
+          document.getElementById('result-box').textContent = "网络请求异常";
+        });
     }
 
     // 启动
