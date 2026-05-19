@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>云平台</title>
+  <link rel="stylesheet" href="/css_files/sunny.css">
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+</head>
+<body>
+
+  <!-- 顶部状态栏 -->
+  <div class="header">
+    <div class="app-title">
+      <svg class="cloud-icon-anim" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+      </svg>
+      401 Cloud Platform
+    </div>
+    <div class="status-tag">
+      <span class="status-dot"></span>
+      Cloud Server: Online
+    </div>
+  </div>
+
+  <!-- 主容器 -->
+  <div class="main-container">
+    
+    <!-- 左侧：实时图像 -->
+    <div class="panel image-panel">
+      <div class="panel-header">
+        <span>实时监测画面</span>
+        <span id="timestamp" style="font-weight: normal; color: #666;">--:--:--</span>
+      </div>
+      <div class="img-container">
+        <div class="live-badge" id="live-badge">LIVE</div>
+        <img id="latest-image" src="" alt="监控画面" style="display: none;">
+        <div class="placeholder" id="image-placeholder">等待推送图像...</div>
+      </div>
+    </div>
+
+    <!-- 右侧：分析数据 -->
+    <div class="panel data-panel">
+      <div class="panel-header">算法分析结果</div>
+      <div class="result-box" id="result-box">等待数据返回...</div>
+    </div>
+
+  </div>
+
+  <script>
+    // 全局状态
+    let currentImageFilename = '';
+    const RESULT_POLL_TIMEOUT = 120 * 1000;
+    let resultPollStartTime = null;
+
+    // 1. 获取最新图片
+    function fetchLatestImage() {
+      fetch('/latest_image')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.ready) {
+            document.getElementById('timestamp').textContent = new Date().toLocaleTimeString();
+            
+            if (currentImageFilename !== data.filename) {
+              currentImageFilename = data.filename;
+              
+              const img = document.getElementById('latest-image');
+              img.src = `/uploads/${data.filename}?t=${Date.now()}`;
+              img.style.display = 'block';
+              document.getElementById('image-placeholder').style.display = 'none';
+              document.getElementById('live-badge').style.display = 'block';
+
+              // 开始轮询结果
+              resultPollStartTime = Date.now();
+              fetchResult(data.filename);
+              
+              // 重置结果展示
+              document.getElementById('result-box').textContent = 'Analyzing...';
+            }
+          }
+        })
+        .catch(console.error);
+    }
+
+    // 2. 获取结果
+    function fetchResult(filename) {
+      if (Date.now() - resultPollStartTime > RESULT_POLL_TIMEOUT) {
+        document.getElementById('result-box').textContent = "分析超时 / Analysis Timeout";
+        return;
+      }
+
+      fetch(`/result?filename=${filename}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.ready) {
+            // 直接展示所有文本结果，不做解析
+            document.getElementById('result-box').textContent = data.content;
+          } else {
+            setTimeout(() => fetchResult(filename), 1000);
+          }
+        })
+        .catch(console.error);
+    }
+
+    // 启动
+    window.onload = () => {
+      setInterval(fetchLatestImage, 2000);
+      fetchLatestImage();
+    };
+  </script>
+</body>
+</html>

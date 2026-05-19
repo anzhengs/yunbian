@@ -1,0 +1,205 @@
+/* 极简云平台风格 */
+:root {
+  --primary: #0066cc;       /* 科技蓝 */
+  --bg-page: #f4f6f8;       /* 浅灰底色 */
+  --bg-card: #ffffff;       /* 卡片白底 */
+  --text-main: #333333;     /* 主文字 */
+  --text-sub: #666666;      /* 次级文字 */
+  --border: #e0e0e0;        /* 边框色 */
+  --radius: 8px;            /* 圆角 */
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-page);
+  /* 科技感点阵背景 */
+  background-image: 
+    radial-gradient(#dbe9f6 2px, transparent 2px),
+    radial-gradient(#dbe9f6 2px, transparent 2px);
+  background-size: 32px 32px;
+  background-position: 0 0, 16px 16px;
+  color: var(--text-main);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶部标题栏 */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 10px 15px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+.app-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+/* 云图标呼吸效果 */
+.cloud-icon-anim {
+  animation: float 3s ease-in-out infinite;
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.status-tag {
+  background: rgba(230, 247, 255, 0.8);
+  color: var(--primary);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(24, 144, 255, 0.2);
+}
+
+/* 状态指示灯 */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #52c41a;
+  border-radius: 50%;
+  display: block;
+  box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.7);
+  animation: pulse-green 2s infinite;
+}
+@keyframes pulse-green {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(82, 196, 26, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(82, 196, 26, 0); }
+}
+
+/* 主布局：左右分栏，高度自适应 */
+.main-container {
+  display: flex;
+  gap: 20px;
+  flex: 1;
+  min-height: 0; /* 允许子元素滚动 */
+}
+
+/* 通用卡片样式 */
+.panel {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 左侧：图片展示区 (占 60%) */
+.image-panel {
+  flex: 3;
+  padding: 20px;
+  position: relative;
+}
+.panel-header {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 15px;
+  display: flex;
+  justify-content: space-between;
+}
+.img-container {
+  flex: 1;
+  background: #000;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+.img-container img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.placeholder {
+  color: #888;
+  font-size: 14px;
+}
+/* 图片左上角的实时标签 */
+.live-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(255, 0, 0, 0.7);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  display: none; /* 有图时显示 */
+}
+
+/* 右侧：数据展示区 (占 40%) */
+.data-panel {
+  flex: 2;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 单一结果展示框 */
+.result-box {
+  flex: 1;
+  background: #1e1e1e; /* 终端黑背景 */
+  color: #00ff00;      /* 终端绿文字 */
+  border-radius: 6px;
+  padding: 20px;
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 16px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.3);
+  border: 1px solid #333;
+  position: relative;
+  /* 云端水印 */
+  background-image: url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%23333' stroke-width='0.5'%3E%3Cpath d='M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: bottom 20px right 20px;
+}
+
+/* 滚动条美化 */
+.result-box::-webkit-scrollbar {
+  width: 8px;
+}
+.result-box::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+.result-box::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+.result-box::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .main-container {
+    flex-direction: column;
+  }
+  .image-panel {
+    min-height: 300px;
+  }
+}
