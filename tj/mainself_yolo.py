@@ -118,28 +118,45 @@ def visualRecognition():
         print(f"❌ 云端算法执行失败: {error_msg}")
         return None, None, None
 
-    # 3. 解析结果（保持原有逻辑不变）
+    # 3. 解析结果（增强鲁棒性，兼容中英文冒号及不同描述）
     raw_content = result_data.get("content", "").strip()
     out, conf, shape_type = None, None, None
     shapes = {"triangle": 0, "rectangle": 0, "polygons": 0, "circles": 0}
 
     lines = [line.strip() for line in raw_content.split("\n") if line.strip()]
     for line in lines:
-        if line.startswith("识别的数字:"):
-            num_str = line.split(":", 1)[1].strip()
-            if num_str.isdigit():
-                out = int(num_str)
-        elif line.startswith("置信度为:"):
-            try:
-                conf = float(line.split(":", 1)[1].strip())
-            except ValueError:
-                pass
-        elif line.startswith("分类结果："):
-            shape_type = line.split("：", 1)[1].strip().replace(" ", "").lower()
+        # 统一将中文冒号替换为英文冒号，方便处理
+        line = line.replace("：", ":")
+        
+        if line.startswith("识别的数字:") or line.startswith("识别的结果:"):
+            parts = line.split(":", 1)
+            if len(parts) > 1:
+                num_str = parts[1].strip()
+                # 提取字符串中的数字部分，防止有乱码或空格
+                num_str = ''.join(filter(str.isdigit, num_str))
+                if num_str.isdigit():
+                    out = int(num_str)
+                    
+        elif line.startswith("置信度为:") or line.startswith("置信度:"):
+            parts = line.split(":", 1)
+            if len(parts) > 1:
+                try:
+                    conf = float(parts[1].strip())
+                except ValueError:
+                    pass
+                    
+        elif line.startswith("分类结果:"):
+            parts = line.split(":", 1)
+            if len(parts) > 1:
+                shape_type = parts[1].strip().replace(" ", "").lower()
 
-    if out is None or conf is None or shape_type is None:
+    # 只要拿到了【数字】和【分类结果】，就算成功（置信度 conf 视为可选项）
+    if out is None or shape_type is None:
         print(f"解析失败！原始内容:\n{raw_content}")
         return None, None, None
+
+    # ✅ 修复：提前安全地处理 conf_str，防止 None 无法格式化
+    conf_str = f"{conf:.2f}" if conf is not None else "N/A"
 
     # 4. 保存结果到本地
     txt_filename = get_timestamped_filename("recognition_result", "txt")
@@ -147,7 +164,7 @@ def visualRecognition():
     try:
         result_content = (
             f"识别的数字:{out}\n"
-            f"置信度为:{conf:.2f}\n"
+            f"置信度为:{conf_str}\n"
             f"分类结果：{shape_type}"
         )
         with open(txt_save_path, 'w', encoding='utf-8') as f:
@@ -155,7 +172,7 @@ def visualRecognition():
     except Exception as e:
         print(f"写入结果文件时出错: {e}")
 
-    print(f"视觉识别完成: 数字={out}, 置信度={conf:.2f}, 分类={shape_type}")
+    print(f"视觉识别完成: 数字={out}, 置信度={conf_str}, 分类={shape_type}")
     return shapes, shape_type, out
 
 
