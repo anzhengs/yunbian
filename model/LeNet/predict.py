@@ -12,7 +12,7 @@ import argparse  # 引入参数解析库
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 # 请确认这里的 log 路径是你存放 checkpoint (模型权重) 的真实路径
 # 如果之前是在 log2 训练的，请改为 log2
-log = '/home/sazuser/401_tensorflow/online-vision/model/LeNet/log/'
+log = '/home/yunbian/online-vision/model/LeNet/log/'
 
 def load_image(image_path):
     # 读取图片

@@ -112,6 +112,11 @@ def visualRecognition():
     if not result_data or not result_data.get("ready"):
         print("超时未获取到解析结果(30秒)")
         return None, None, None
+        
+    if not result_data.get("success", False):
+        error_msg = result_data.get("message", "未知算法错误")
+        print(f"❌ 云端算法执行失败: {error_msg}")
+        return None, None, None
 
     # 3. 解析结果（保持原有逻辑不变）
     raw_content = result_data.get("content", "").strip()
