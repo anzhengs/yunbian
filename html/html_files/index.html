@@ -3,16 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>云平台</title>
+  <title>云平台 - 并发监控中心</title>
   <link rel="stylesheet" href="/css_files/sunny.css">
   <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <style>
+    :root {
+      --primary-color: #1e3c72;
+      --primary-light: #2a5298;
+      --bg-color: #f4f6f9;
+      --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --text-main: #333;
+      --text-sub: #666;
+      --border-color: #e8e8e8;
+    }
+    
+    body { margin: 0; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: var(--bg-color); color: var(--text-main); }
+    .header { background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%); color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .app-title { font-size: 22px; font-weight: bold; display: flex; align-items: center; gap: 12px; }
+    .status-tag { background: rgba(255,255,255,0.2); padding: 6px 16px; border-radius: 20px; font-size: 14px; display: flex; align-items: center; letter-spacing: 0.5px; }
+    .status-dot { height: 8px; width: 8px; background-color: #4caf50; border-radius: 50%; display: inline-block; margin-right: 8px; box-shadow: 0 0 5px #4caf50; }
+    
+    .main-container { display: flex; padding: 20px; gap: 20px; height: calc(100vh - 60px); box-sizing: border-box; }
+    
+    /* 左侧详情区 */
+    .detail-panel { flex: 2; background: white; border-radius: 12px; box-shadow: var(--card-shadow); overflow: hidden; display: flex; flex-direction: column; }
+    .detail-header { padding: 20px; border-bottom: 1px solid var(--border-color); font-weight: bold; font-size: 18px; display: flex; justify-content: space-between; align-items: center; background: #fff; }
+    .detail-body { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; background: #fafbfc; }
+    .detail-img-box { flex: 1; background: #000; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative; min-height: 250px; border: 1px solid #ddd; }
+    .detail-img-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .result-box { background: #fff; padding: 20px; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 16px; min-height: 80px; border-left: 5px solid var(--primary-color); white-space: pre-wrap; box-shadow: 0 2px 5px rgba(0,0,0,0.05); color: var(--text-main); }
+    
+    /* 右侧看板区 */
+    .board-panel { flex: 1; background: white; border-radius: 12px; box-shadow: var(--card-shadow); overflow: hidden; display: flex; flex-direction: column; }
+    .board-header { padding: 20px; border-bottom: 1px solid var(--border-color); font-weight: bold; font-size: 18px; background: #fafbfc; }
+    .task-list { flex: 1; overflow-y: auto; padding: 15px; background: var(--bg-color); }
+    
+    /* 任务卡片 */
+    .task-card { background: #fff; border-radius: 8px; margin-bottom: 12px; overflow: hidden; cursor: pointer; transition: all 0.2s ease; border: 1px solid #fff; position: relative; }
+    .task-card:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
+    .task-card.active { border-color: transparent; box-shadow: 0 6px 20px rgba(30,60,114,0.2); border-left: 4px solid var(--primary-color); }
+    .card-header { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f0f0; background: #fcfcfc; }
+    .card-body { padding: 12px 15px; display: flex; gap: 12px; align-items: center; }
+    .card-thumb { width: 56px; height: 56px; background: #eee; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+    .card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .card-info { flex: 1; font-size: 13px; color: #555; overflow: hidden; }
+    .device-tag { background: #e8eaf6; color: #3f51b5; padding: 2px 6px; border-radius: 4px; font-size: 12px; margin-right: 5px; font-weight: 600; }
+    
+    .badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; color: white; font-weight: 500; letter-spacing: 0.5px; }
+    .badge-pending { background: #ff9800; }
+    .badge-processing { background: #2196f3; animation: pulse 1.5s infinite; }
+    .badge-done { background: #4caf50; }
+    .badge-error { background: #f44336; }
+  </style>
 </head>
 <body>
 
   <!-- 顶部状态栏 -->
   <div class="header">
     <div class="app-title">
-      <svg class="cloud-icon-anim" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
       </svg>
       401 Cloud Platform
@@ -26,109 +75,150 @@
   <!-- 主容器 -->
   <div class="main-container">
     
-    <!-- 左侧：实时图像 -->
-    <div class="panel image-panel">
-      <div class="panel-header">
-        <span>实时监测画面</span>
-        <span id="timestamp" style="font-weight: normal; color: #666;">--:--:--</span>
+    <!-- 左侧：任务详情 -->
+    <div class="detail-panel">
+      <div class="detail-header">
+        <span>任务详情监控</span>
+        <span id="detail-id" style="font-size: 14px; color: #888; font-weight: normal;">自动跟踪最新任务...</span>
       </div>
-      <div class="img-container">
-        <div class="live-badge" id="live-badge">LIVE</div>
-        <img id="latest-image" src="" alt="监控画面" style="display: none;">
-        <div class="placeholder" id="image-placeholder">等待推送图像...</div>
+      <div class="detail-body">
+        <div class="detail-img-box" id="detail-img-box">
+          <img id="detail-image" src="" style="display: none;">
+          <div style="color: #666; font-size: 16px; position: absolute;" id="detail-placeholder">等待图像推送</div>
+        </div>
+        <div class="result-box" id="detail-result">
+          [分析结果] 将在此处显示
+        </div>
       </div>
     </div>
 
-    <!-- 右侧：分析数据 -->
-    <div class="panel data-panel">
-      <div class="panel-header">算法分析结果</div>
-      <div class="result-box" id="result-box">等待数据返回...</div>
+    <!-- 右侧：并发看板 -->
+    <div class="board-panel">
+      <div class="board-header">并发任务看板</div>
+      <div class="task-list" id="task-list">
+        <!-- 动态渲染 -->
+      </div>
     </div>
 
   </div>
 
   <script>
-    // 全局状态
-    let currentTaskId = null;       // 新增：用于存储最新的 task_id
-    let currentImageFilename = '';
-    const RESULT_POLL_TIMEOUT = 120 * 1000;
-    let resultPollStartTime = null;
+    let tasksCache = [];         // 缓存任务列表
+    let currentViewTaskId = null; // 当前查看的任务ID
+    let isAutoFollow = true;     // 是否自动跟随最新任务
 
-    // 1. 获取最新图片
-    function fetchLatestImage() {
-      fetch('/latest_image')
-        .then(res => res.json())
-        .then(data => {
-          if (data.success && data.ready) {
-            document.getElementById('timestamp').textContent = new Date().toLocaleTimeString();
-            
-            // 获取最新任务的标识符（优先使用 task_id）
-            const newTaskId = data.task_id || null;
-            const newFilename = data.filename;
-            
-            // 判断是否为新任务（如果 task_id 存在则用 task_id 判断，否则用 filename）
-            const isNewTask = newTaskId 
-              ? (currentTaskId !== newTaskId) 
-              : (currentImageFilename !== newFilename);
-
-            if (isNewTask) {
-              currentTaskId = newTaskId;
-              currentImageFilename = newFilename;
-              
-              const img = document.getElementById('latest-image');
-              img.src = `/uploads/${newFilename}?t=${Date.now()}`;
-              img.style.display = 'block';
-              document.getElementById('image-placeholder').style.display = 'none';
-              document.getElementById('live-badge').style.display = 'block';
-
-              // 开始轮询结果，传递两个标识符
-              resultPollStartTime = Date.now();
-              fetchResult(currentTaskId, currentImageFilename);
-              
-              // 重置结果展示
-              document.getElementById('result-box').textContent = 'Analyzing...';
-            }
-          }
+    // 1. 定时刷新任务列表
+    function fetchTasks() {
+      fetch('/tasks')
+        .then(res => {
+            if (!res.ok) throw new Error('Network response was not ok');
+            return res.json();
         })
-        .catch(console.error);
-    }
-
-    // 2. 获取结果
-    function fetchResult(taskId, filename) {
-      if (Date.now() - resultPollStartTime > RESULT_POLL_TIMEOUT) {
-        document.getElementById('result-box').textContent = "分析超时 / Analysis Timeout";
-        return;
-      }
-
-      const queryParams = taskId 
-        ? `task_id=${taskId}` 
-        : `filename=${filename}`;
-
-      fetch(`/result?${queryParams}`)
-        .then(res => res.json())
         .then(data => {
-          // ✅ 修改：区分"还在处理中"和"处理失败"
-          if (data.success && data.ready) {
-            // 成功获取结果
-            document.getElementById('result-box').textContent = data.content;
-          } else if (data.ready && !data.success) {
-            // 处理失败（如算法报错），停止轮询并显示错误
-            document.getElementById('result-box').textContent = "处理失败: " + (data.message || "未知错误");
-          } else {
-            // 还在处理中，继续轮询
-            setTimeout(() => fetchResult(taskId, filename), 1000);
-          }
+            if (!Array.isArray(data)) return; // 防御性编程
+            tasksCache = data;
+            renderTaskList();
+            
+            // 如果开启了自动跟随，或者还没选中过任务，则强制选中最新任务
+            if (isAutoFollow && data.length > 0) {
+                selectTask(data[0].full_task_id);
+            } else if (currentViewTaskId) {
+                updateDetailView(); // 否则只更新详情内容
+            }
         })
         .catch(err => {
-          console.error('获取结果异常:', err);
-          document.getElementById('result-box').textContent = "网络请求异常";
+            console.error('Fetch tasks error:', err);
         });
     }
 
-    // 启动
+    // 2. 渲染右侧任务列表
+    function renderTaskList() {
+      const listEl = document.getElementById('task-list');
+      
+      if (tasksCache.length === 0) {
+        listEl.innerHTML = '<div style="text-align: center; color: #888; margin-top: 50px; font-size: 15px;">暂无并发任务</div>';
+        return;
+      }
+      
+      listEl.innerHTML = '';
+      
+      tasksCache.forEach(task => {
+        const card = document.createElement('div');
+        card.className = `task-card ${task.full_task_id === currentViewTaskId ? 'active' : ''}`;
+        
+        let statusText = task.status;
+        let badgeClass = 'badge-pending';
+        if (task.status === 'processing') { statusText = '处理中'; badgeClass = 'badge-processing'; }
+        else if (task.status === 'done') { statusText = '已完成'; badgeClass = 'badge-done'; }
+        else if (task.status === 'error') { statusText = '失败'; badgeClass = 'badge-error'; }
+        else if (task.status === 'pending') { statusText = '排队中'; badgeClass = 'badge-pending'; }
+
+        // 处理缩略图加载，增加时间戳防止缓存
+        const thumbUrl = task.image_url + (task.image_url.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+
+        card.innerHTML = `
+          <div class="card-header">
+            <span style="color:#555; font-size:13px;">ID: ${task.task_id}</span>
+            <span class="badge ${badgeClass}">${statusText}</span>
+          </div>
+          <div class="card-body">
+            <div class="card-thumb">
+              <img src="${thumbUrl}" alt="thumb" onerror="this.style.display='none'">
+            </div>
+            <div class="card-info">
+              <div style="margin-bottom: 6px; color:#333; font-weight:600;"><span class="device-tag">${task.device_name}</span></div>
+              <div style="color:#777; height:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${task.result_preview || 'Waiting...'}</div>
+            </div>
+          </div>
+        `;
+        
+        // 点击卡片切换详情，并关闭自动跟随
+        card.onclick = () => {
+          isAutoFollow = false; 
+          selectTask(task.full_task_id);
+        };
+        listEl.appendChild(card);
+      });
+    }
+
+    // 3. 选中某个任务，更新左侧详情
+    function selectTask(taskId) {
+      currentViewTaskId = taskId;
+      renderTaskList(); // 重新渲染列表以更新 active 高亮
+      updateDetailView();
+    }
+
+    // 4. 更新左侧详情视图
+    function updateDetailView() {
+      const task = tasksCache.find(t => t.full_task_id === currentViewTaskId);
+      if (!task) return;
+
+      document.getElementById('detail-id').textContent = `Task: ${task.task_id} | Device: ${task.device_name}`;
+      
+      const imgEl = document.getElementById('detail-image');
+      const placeholderEl = document.getElementById('detail-placeholder');
+      
+      // 修复：通过比对 task_id 判断是否需要更新大图，避免因为 URL 绝对路径/相对路径差异导致反复刷新
+      if (imgEl.dataset.currentTaskId !== task.full_task_id) {
+          imgEl.src = task.image_url + '?t=' + new Date().getTime();
+          imgEl.dataset.currentTaskId = task.full_task_id;
+          imgEl.style.display = 'block';
+          placeholderEl.style.display = 'none';
+      }
+      
+      let resultContent = "[ 等待分析 ]";
+      if (task.status === 'done') resultContent = task.result_preview || "[ 结果为空 ]";
+      else if (task.status === 'error') resultContent = "[ 处理失败 ]";
+      else if (task.status === 'processing') resultContent = "[ 正在计算 ]";
+      else if (task.status === 'pending') resultContent = "[ 排队等待 ]";
+      
+      document.getElementById('detail-result').textContent = resultContent;
+    }
+
+    // 启动轮询
     window.onload = () => {
-      setInterval(fetchLatestImage, 2000);
-      fetchLatestImage();
+      setInterval(fetchTasks, 1500); // 1.5秒刷新一次
+      fetchTasks();
     };
   </script>
 </body>

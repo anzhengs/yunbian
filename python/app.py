@@ -336,6 +336,35 @@ def list_processors():
     })
 
 
+@app.route('/tasks', methods=['GET'])
+def get_tasks():
+    """获取所有任务的状态列表，供前端看板展示"""
+    with task_lock:
+        tasks_data = []
+        for tid, info in TASK_REGISTRY.items():
+            device_name = "Web-Client"
+            fn = info.get("filename", "")
+            # 尝试从文件名解析设备标识（兼容并发测试脚本和前端上传）
+            if "device_" in fn:
+                parts = fn.split("device_")
+                if len(parts) > 1:
+                    # 提取 device_X.jpg 中的 X
+                    device_name = "Device-" + parts[-1].replace(".jpg","").replace(".png","").split("_")[0]
+            
+            tasks_data.append({
+                "task_id": tid[:8],          # 短 ID，用于显示
+                "full_task_id": tid,         # 完整 ID，用于查询
+                "device_name": device_name,
+                "status": info.get("status"),
+                "image_url": f"/uploads/{fn}",
+                "result_preview": (info.get("result") or "")[:80], # 截断过长结果
+                "timestamp": info.get("created_at", 0)
+            })
+    
+    # 按时间倒序，最新的在最上面，只返回最近30个防止卡顿
+    tasks_data.sort(key=lambda x: x["timestamp"], reverse=True)
+    return jsonify(tasks_data[:30])
+
 @app.route('/process', methods=['POST'])
 def process_image():
     """使用指定处理器处理图片"""
