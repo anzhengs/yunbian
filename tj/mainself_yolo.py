@@ -24,6 +24,9 @@ while True:
     if message_plc == 'connect plc ok':
         break
 
+DEVICE_ID = 4   # 第1台设备=1，第2台=2，……第10台=10！！！！！！！！！！！！！！！！！！！
+# ============================================================
+
 CLOUD_API_URL = "http://192.168.40.59:5401"
 UPLOAD_ENDPOINT = f"{CLOUD_API_URL}/upload"
 RESULT_ENDPOINT = f"{CLOUD_API_URL}/result"
@@ -37,6 +40,7 @@ os.makedirs(SAVE_ROOT, exist_ok=True)
 def get_timestamped_filename(prefix, ext):
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{prefix}_{timestamp}.{ext}"
+
 
 def visualRecognition():
     time.sleep(2)
@@ -56,13 +60,15 @@ def visualRecognition():
         print(f"临时图像保存失败: {e}")
         return None, None, None
 
-    # 1. 上传图片，获取 task_id
+    # 1. 上传图片，携带 device_id
     task_id = None
     uploaded_filename = None
     try:
         with open(temp_image_path, "rb") as f:
-            files = {"file": ("temp_upload.jpg", f, "image/jpeg")}
-            response = session.post(UPLOAD_ENDPOINT, files=files, timeout=30)
+            upload_filename = f"device_{DEVICE_ID}_capture.jpg"
+            files = {"file": (upload_filename, f, "image/jpeg")}
+            data = {"device_id": str(DEVICE_ID)}     # ★ 携带固定设备ID
+            response = session.post(UPLOAD_ENDPOINT, files=files, data=data, timeout=30)
             response.raise_for_status()
             upload_result = response.json()
 
@@ -70,9 +76,9 @@ def visualRecognition():
                 print(f"云平台上传失败: {upload_result.get('message', '未知错误')}")
                 return None, None, None
 
-            task_id = upload_result.get("task_id")        # ✅ 新增：获取任务ID
+            task_id = upload_result.get("task_id")
             uploaded_filename = upload_result.get("filename")
-            print(f"图像上传成功，task_id={task_id}，filename={uploaded_filename}")
+            print(f"[Device-{DEVICE_ID}] 图像上传成功，task_id={task_id}，filename={uploaded_filename}")
     except requests.exceptions.Timeout:
         print("上传请求超时(30秒)")
         return None, None, None
@@ -83,20 +89,19 @@ def visualRecognition():
         print(f"上传请求失败: {e}")
         return None, None, None
 
-    # 2. 用 task_id 轮询结果（最多等待30秒，每2秒查询一次）
+    # 2. 轮询结果 —— ★ 优先用 device_id 查询，回退用 task_id
     max_retries = 15
     retry_count = 0
     result_data = None
     while retry_count < max_retries:
         try:
-            # 优先用 task_id 查询（更快），兼容 filename 回退
-            params = {"task_id": task_id} if task_id else {"filename": uploaded_filename}
+            params = {"device_id": str(DEVICE_ID)}   # ★ 用固定ID查询
             response = session.get(RESULT_ENDPOINT, params=params, timeout=10)
             response.raise_for_status()
             result_data = response.json()
 
             if result_data.get("ready", False):
-                print("✅ 云平台返回解析结果")
+                print(f"[Device-{DEVICE_ID}] ✅ 云平台返回解析结果")
                 break
 
             retry_count += 1
@@ -110,33 +115,29 @@ def visualRecognition():
             time.sleep(2)
 
     if not result_data or not result_data.get("ready"):
-        print("超时未获取到解析结果(30秒)")
-        return None, None, None
-        
-    if not result_data.get("success", False):
-        error_msg = result_data.get("message", "未知算法错误")
-        print(f"❌ 云端算法执行失败: {error_msg}")
+        print(f"[Device-{DEVICE_ID}] 超时未获取到解析结果(30秒)")
         return None, None, None
 
-    # 3. 解析结果（增强鲁棒性，兼容中英文冒号及不同描述）
+    if not result_data.get("success", False):
+        error_msg = result_data.get("message", "未知算法错误")
+        print(f"[Device-{DEVICE_ID}] ❌ 云端算法执行失败: {error_msg}")
+        return None, None, None
+
+    # 3. 解析结果（以下逻辑完全不变）
     raw_content = result_data.get("content", "").strip()
     out, conf, shape_type = None, None, None
     shapes = {"triangle": 0, "rectangle": 0, "polygons": 0, "circles": 0}
 
     lines = [line.strip() for line in raw_content.split("\n") if line.strip()]
     for line in lines:
-        # 统一将中文冒号替换为英文冒号，方便处理
         line = line.replace("：", ":")
-        
         if line.startswith("识别的数字:") or line.startswith("识别的结果:"):
             parts = line.split(":", 1)
             if len(parts) > 1:
                 num_str = parts[1].strip()
-                # 提取字符串中的数字部分，防止有乱码或空格
                 num_str = ''.join(filter(str.isdigit, num_str))
                 if num_str.isdigit():
                     out = int(num_str)
-                    
         elif line.startswith("置信度为:") or line.startswith("置信度:"):
             parts = line.split(":", 1)
             if len(parts) > 1:
@@ -144,18 +145,15 @@ def visualRecognition():
                     conf = float(parts[1].strip())
                 except ValueError:
                     pass
-                    
         elif line.startswith("分类结果:"):
             parts = line.split(":", 1)
             if len(parts) > 1:
                 shape_type = parts[1].strip().replace(" ", "").lower()
 
-    # 只要拿到了【数字】和【分类结果】，就算成功（置信度 conf 视为可选项）
     if out is None or shape_type is None:
         print(f"解析失败！原始内容:\n{raw_content}")
         return None, None, None
 
-    # ✅ 修复：提前安全地处理 conf_str，防止 None 无法格式化
     conf_str = f"{conf:.2f}" if conf is not None else "N/A"
 
     # 4. 保存结果到本地
@@ -172,8 +170,9 @@ def visualRecognition():
     except Exception as e:
         print(f"写入结果文件时出错: {e}")
 
-    print(f"视觉识别完成: 数字={out}, 置信度={conf_str}, 分类={shape_type}")
+    print(f"[Device-{DEVICE_ID}] 视觉识别完成: 数字={out}, 置信度={conf_str}, 分类={shape_type}")
     return shapes, shape_type, out
+
 
 
 
