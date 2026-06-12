@@ -127,6 +127,7 @@ def upload_file():
             with DEVICE_LOCK:
                 DEVICE_REGISTRY[device_id] = {
                     "device_id": device_id,
+                    "display_name": DEVICE_NAMES.get(device_id, f"设备 {device_id}"),  # ★ 保留显示名称
                     "status": "pending",
                     "task_id": task_id,
                     "result": None,

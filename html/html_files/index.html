@@ -430,32 +430,29 @@
       document.getElementById(`foot-time-${id}`).textContent = dev.last_seen_fmt || '--:--:--';
     }
 
-    function updateStats(devices) {
-      let connected = 0, done = 0, processing = 0, error = 0, idle = 0;
-      for (const d of devices) {
-        if (d.connected) connected++;
-        if (d.status === 'done') done++;
-        else if (d.status === 'processing') processing++;
-        else if (d.status === 'error') error++;
-        else idle++;
-      }
-      document.getElementById('stat-connected').textContent = connected;
-      document.getElementById('stat-done').textContent = done;
-      document.getElementById('stat-processing').textContent = processing;
-      document.getElementById('stat-error').textContent = error;
-      document.getElementById('stat-idle').textContent = idle;
-    }
-
-    // 轮询 /devices 接口
     function fetchDevices() {
       fetch('/devices')
         .then(res => {
           if (!res.ok) throw new Error('HTTP ' + res.status);
-          return res.json();
+        return res.json();
         })
         .then(data => {
           if (!data.success || !Array.isArray(data.devices)) return;
           devicesCache = data.devices;
+      
+          // ★ 新增：排序——有交互的排前面，无交互的排后面
+          devicesCache.sort((a, b) => {
+            if (a.connected !== b.connected) return b.connected - a.connected;  // connected=true 优先
+            return a.device_id - b.device_id;  // 同组内按编号升序
+          });
+      
+          // ★ 新增：重排 DOM 节点顺序
+          const grid = document.getElementById('device-grid');
+          for (const dev of devicesCache) {
+            const card = document.getElementById(`dev-card-${dev.device_id}`);
+            if (card) grid.appendChild(card);  // append 已存在节点会自动移动位置
+          }
+      
           for (const dev of devicesCache) {
             updateCard(dev);
           }
